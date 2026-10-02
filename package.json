@@ -1,0 +1,27 @@
+{
+  "name": "ai-company-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Startup Company OS — a virtual software company staffed by Kiro-powered AI employees, owned by one human.",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run typecheck -w server && npm run build -w web",
+    "start": "concurrently -n api,web -c blue,green \"npm run start -w server\" \"npm run start -w web\"",
+    "test": "npm test -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
+    "db:generate": "npm run db:generate -w server",
+    "test:e2e": "playwright test",
+    "test:docker": "npm run test:docker -w server"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "concurrently": "10.0.5"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}
