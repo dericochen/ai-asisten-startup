@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { decidePermission, isInside, type PermissionContext } from '../src/kiro/policy.js';
-import { containerArgs, processEnvironment } from '../src/lib/sandbox.js';
+import { containerArgs, processEnvironment, proxyArgs } from '../src/lib/sandbox.js';
 import { buildAgentProfile } from '../src/kiro/agents.js';
 const dirs: string[] = [];
 function dir() { const p = fs.mkdtempSync(path.join(os.tmpdir(), 'aco-isolation-')); dirs.push(p); return p; }
@@ -29,6 +29,9 @@ describe('agent execution boundary', () => {
   });
   it('publishes application ports only on loopback using an internal network', () => {
     const args = containerArgs({ dir: dir(), args: ['run', 'start'], network: 'application', port: 4501 }, 'test', '/mask');
-    expect(args).toContain('127.0.0.1:4501:4501'); expect(args).toContain('aco-apps-internal');
+    expect(args).not.toContain('--publish'); expect(args).toContain('aco-apps-internal');
+    const proxy = proxyArgs('aco-test', 4501);
+    expect(proxy).toContain('127.0.0.1:4501:4501'); expect(proxy).not.toContain('--mount');
+    expect(proxy).toContain('aco-proxy-ingress'); expect(proxy).toContain('aco-apps-internal');
   });
 });
