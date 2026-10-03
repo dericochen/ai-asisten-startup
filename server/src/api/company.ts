@@ -71,6 +71,7 @@ export function registerCompanyRoutes(app: FastifyInstance, s: Services, ceo: Ce
     deploymentMode: z.enum(['MANUAL', 'CEO_APPROVAL', 'OWNER_APPROVAL', 'AUTO_AFTER_CHECKS']).optional(),
     fallbackMode: z.enum(['AUTO', 'ASK_OWNER', 'DISABLED']).optional(),
     fallbackEnabled: z.boolean().optional(),
+    primaryRuntime: z.enum(['KIRO', 'PROVIDERS']).optional(),
     requireOwnerAcceptance: z.boolean().optional(),
     limits: z.object({ maxResearchRounds: z.number().int().min(1).max(5), maxReviewRounds: z.number().int().min(1).max(5), maxAgentRetries: z.number().int().min(0).max(5), maxTaskRevisions: z.number().int().min(0).max(5), maxFixAttempts: z.number().int().min(1).max(5) }).partial().optional(),
     kiro: z.object({ poolSize: z.number().int().min(1).max(20), turnTimeoutMs: z.number().int().min(60_000).max(3_600_000), dailyCreditSoftLimit: z.number().min(0).max(100_000), nearLimitRatio: z.number().min(0.1).max(1), limitCooldownMs: z.number().int().min(60_000).max(86_400_000) }).partial().optional(),
@@ -81,6 +82,7 @@ export function registerCompanyRoutes(app: FastifyInstance, s: Services, ceo: Ce
   app.put('/api/policies', async (req, reply) => {
     const parsed = policySchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid policies', issues: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) });
+    if (parsed.data.primaryRuntime === 'PROVIDERS' && !(await s.fallback.usable()).length) return reply.code(400).send({ error: 'Add and enable a provider connection before selecting providers as the primary AI.' });
     const cur = s.policies();
     const d = parsed.data;
     const next = { ...cur, ...d, limits: { ...cur.limits, ...d.limits }, kiro: { ...cur.kiro, ...d.kiro }, research: { ...cur.research, ...d.research }, monitoring: { ...cur.monitoring, ...d.monitoring } };

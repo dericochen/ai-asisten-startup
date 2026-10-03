@@ -170,3 +170,27 @@ describe('progress is derived, not hardcoded', () => {
     expect(pr.groups.every((g) => g.explanation.length > 0)).toBe(true);
   });
 });
+
+describe('connected providers as primary AI', () => {
+  it('uses 9Router directly even when Kiro is available and fallback is disabled', async () => {
+    const http = await import('node:http');
+    const { vi } = await import('vitest');
+    const server = http.createServer(async (req, res) => {
+      for await (const chunk of req) { /* consume request */ }
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ choices: [{ message: { content: '# Router ready\n```json\n{"reply":"Router ready"}\n```' } }], model: 'router/test' }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as import('node:net').AddressInfo).port;
+    const accepting = vi.spyOn(s.kiro, 'acceptingJobs').mockImplementation(() => { throw new Error('Kiro should not be consulted in provider-primary mode'); });
+    try {
+      await s.db.update(m.schema.providerConnections).set({ enabled: false });
+      await s.fallback.create({ name: '9Router integration', provider: 'NINE_ROUTER', baseUrl: `http://127.0.0.1:${port}/v1`, model: 'router/test', priority: 1 });
+      await s.db.update(m.schema.company).set({ policies: { ...m.def.DEFAULT_POLICIES, primaryRuntime: 'PROVIDERS', fallbackEnabled: false, fallbackMode: 'DISABLED' } });
+      const employee = (await s.org.pick('ceo'))!; const role = (await s.org.role('ceo'))!;
+      const result = await s.executor.execute({ task: null, employee, role, prompt: 'Say ready', root: path.join(dataDir, 'router-primary'), label: 'Router primary', expectJson: true });
+      expect(result.provider).toBe('9Router integration'); expect(result.extracted.data?.reply).toBe('Router ready');
+      expect(accepting).not.toHaveBeenCalled();
+    } finally { accepting.mockRestore(); await new Promise<void>((resolve) => server.close(() => resolve())); }
+  });
+});

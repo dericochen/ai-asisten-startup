@@ -444,7 +444,7 @@ export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVISION_REQ
 export type CheckStatus = 'PASS' | 'FAIL' | 'SKIP' | 'ERROR';
 export type ReleaseStatus = 'CANDIDATE' | 'STAGING' | 'STAGING_PASSED' | 'STAGING_FAILED' | 'APPROVED' | 'DEPLOYING' | 'HEALTHY' | 'DEGRADED' | 'ROLLED_BACK' | 'FAILED';
 export type DeploymentStatus = 'PENDING' | 'BUILDING' | 'RUNNING' | 'HEALTHY' | 'UNHEALTHY' | 'FAILED' | 'STOPPED' | 'ROLLED_BACK';
-export type FallbackProvider = 'OPENROUTER' | 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'OPENAI_COMPATIBLE' | 'OLLAMA';
+export type FallbackProvider = 'NINE_ROUTER' | 'OPENROUTER' | 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'OPENAI_COMPATIBLE' | 'OLLAMA';
 export type MessageType = 'REPORT' | 'TASK' | 'QUESTION' | 'REVIEW_REQUEST' | 'APPROVAL_REQUEST' | 'BLOCKER' | 'ESCALATION' | 'DECISION' | 'INCIDENT';
 export type ArtifactKind = 'RESEARCH_BRIEF' | 'RESEARCH_FINDINGS' | 'RESEARCH_CRITIQUE' | 'RESEARCH_REPORT' | 'PRD' | 'PRODUCT_REVIEW' | 'DESIGN_DOC' | 'DESIGN_REVIEW' | 'ARCHITECTURE_DOC' | 'ARCHITECTURE_REVIEW' | 'ADR' | 'CODE_REVIEW' | 'QA_REPORT' | 'SECURITY_REPORT' | 'RELEASE_NOTES' | 'RELEASE_REPORT' | 'COMPLETION_REPORT' | 'POSTMORTEM' | 'EXECUTIVE_REVIEW' | 'ENGINEERING_REPORT';
 export type Gate = 'RESEARCH' | 'PRODUCT' | 'DESIGN' | 'ARCHITECTURE' | 'RELEASE' | 'PRODUCTION_DEPLOY' | 'FALLBACK_USAGE' | 'DESTRUCTIVE_ACTION' | 'ESCALATION';
@@ -473,6 +473,7 @@ export interface CompanyPolicies {
   deploymentMode: DeploymentMode;
   fallbackMode: FallbackMode;
   fallbackEnabled: boolean;
+  primaryRuntime?: 'KIRO' | 'PROVIDERS';
   limits: { maxResearchRounds: number; maxReviewRounds: number; maxAgentRetries: number; maxTaskRevisions: number; maxFixAttempts: number };
   kiro: { poolSize: number; turnTimeoutMs: number; dailyCreditSoftLimit: number; nearLimitRatio: number; limitCooldownMs: number };
   research: { researcherCount: number };

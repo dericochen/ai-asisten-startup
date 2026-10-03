@@ -1,6 +1,6 @@
 # AI Startup Company OS
 
-A local, full-stack operating system for a virtual software company. One human is the **Owner**; 111 AI employees in 10 departments do the work. **Kiro CLI is the primary intelligence** — every employee runs as a Kiro custom agent through `kiro-cli acp`. External AI APIs are optional, policy-gated **fallback only**.
+A local, full-stack operating system for a virtual software company. One human is the **Owner**; 111 AI employees in 10 departments do the work. **Kiro CLI is the default primary intelligence** — every employee runs as a Kiro custom agent through `kiro-cli acp`. 9Router, OpenRouter and other AI APIs can be selected as the primary runtime or used as policy-gated fallback.
 
 The Owner gives a goal ("CEO, build a booking site for barbershops…"). The CEO agent turns it into a project, and the workflow engine drives it through Research → Product → Design → Architecture → Engineering → Code review → QA → Security → Performance → Release candidate → Staging → Staging validation → Release board → Owner approval → Production → Production validation → Monitoring → Completion. Gates are enforced by the backend against database state, not by prompts.
 
@@ -45,3 +45,7 @@ Generated application execution requires Docker Desktop in Linux-container mode 
 Run npm test, npm run build, npm run test:e2e and npm run test:docker. Install browser binaries first with npx playwright install chromium. The Docker suite uses a deterministic application fixture; it does not prove live AI delivery. See docs/TESTING.md for verified and outstanding acceptance checks.
 
 Runtime data, credentials, process logs and compiler caches are excluded from Git. Configure your own Owner account through setup; operational scripts read its password from ACO_PASS.
+
+## Use 9Router / OpenRouter
+
+Open AI Runtime, add your router connection, load/select a model, and click Test. Choose Primary AI → Connected providers to use the router immediately without Kiro. See [provider setup](docs/FALLBACK_AI.md#configure-9router-or-openrouter) for endpoints and key handling.

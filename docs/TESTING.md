@@ -41,3 +41,7 @@ Not yet verified end to end in this environment: the Architecture → Engineerin
 Install the browser once with npx playwright install chromium. Browser test servers use ports 3199/4198 and separate .next-e2e output. The fixture login is test-only. Operational helper scripts require ACO_PASS; they no longer assume the sample password.
 
 The earlier verification table describes historical runs. Real Kiro Architecture → Engineering → QA → Production → Monitoring and real external fallback providers still need an acceptance run with authenticated Kiro and Docker. No live model run is fabricated by the regression fixtures.
+
+## Router verification
+
+72 backend tests pass after adding 9Router/OpenRouter coverage. The browser flow also verifies model discovery, encrypted-key reuse, both connection types, primary-provider selection and a CEO round trip against a local HTTP fixture. No real provider key or paid upstream request is needed by the tests. The preceding Docker delivery workflow passed in [GitHub Actions](https://github.com/dericochen/ai-asisten-startup/actions/runs/37049300421).

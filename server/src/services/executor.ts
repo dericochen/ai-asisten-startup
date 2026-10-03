@@ -69,6 +69,7 @@ export class AgentExecutor {
     };
     await this.org.setStatus(employee.id, task?.stage.includes('review') || task?.stage.includes('critic') ? 'REVIEWING' : 'WORKING', req.label, task?.id ?? null);
 
+    if (pol.primaryRuntime === 'PROVIDERS') return this.viaFallbackPolicy(req, pol, 'USER_FORCED_FALLBACK', 'Owner selected connected providers as primary AI.');
     let accepting = this.kiro.acceptingJobs();
     if (!accepting.ok && (accepting.reason === 'NOT_INSTALLED' || accepting.reason === 'AUTH') && Date.now() - Date.parse(this.kiro.detection.checkedAt) > 30_000) {
       await this.kiro.detect();
@@ -171,9 +172,9 @@ export class AgentExecutor {
   /** Apply the Owner's fallback policy: AUTO → run fallback; ASK_OWNER → pause + approval; DISABLED → pause. */
   private async viaFallbackPolicy(req: ExecuteRequest, pol: CompanyPolicies, trigger: string, why: string): Promise<ExecuteResult> {
     const { task, employee } = req;
-    const connections = pol.fallbackEnabled ? await this.fallback.usable() : [];
     const forced = trigger === 'USER_FORCED_FALLBACK';
-    if (!connections.length) throw new RuntimeBlockedError(`Kiro cannot continue (${trigger}: ${why}). No fallback provider is enabled — task paused until Kiro is available.`, trigger);
+    const connections = pol.fallbackEnabled || forced ? await this.fallback.usable() : [];
+    if (!connections.length) throw new RuntimeBlockedError(`Kiro cannot continue (${trigger}: ${why}). No fallback provider is enabled — add an enabled provider in AI Runtime or select Kiro.`, trigger);
     if (pol.fallbackMode === 'DISABLED' && !forced) throw new RuntimeBlockedError(`Kiro cannot continue (${trigger}). Fallback is DISABLED — task paused until Kiro is available.`, trigger);
     if (pol.fallbackMode === 'ASK_OWNER' && !req.allowFallback && !forced) {
       const pending = task ? (await this.approvals.list({ status: 'PENDING', projectId: task.projectId ?? undefined })).find((a) => a.gate === 'FALLBACK_USAGE' && a.taskId === task.id) : undefined;

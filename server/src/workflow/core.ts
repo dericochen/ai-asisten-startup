@@ -76,10 +76,15 @@ export class EngineCore {
   private async unblockRuntimeTasks(): Promise<void> {
     const blocked = (await this.s.tasks.list({ status: ['BLOCKED'] })).filter((t) => t.blockedReason?.startsWith('RUNTIME:'));
     if (!blocked.length) return;
-    const kiroOk = this.s.kiro.acceptingJobs().ok;
+    const providerPrimary = this.s.policies().primaryRuntime === 'PROVIDERS';
+    const kiroOk = !providerPrimary && this.s.kiro.acceptingJobs().ok;
+    const connections = providerPrimary ? await this.s.fallback.usable() : [];
+    const providerResumeKey = JSON.stringify(connections.map((c) => [c.id, c.model, c.baseUrl, c.lastCheckedAt]));
     for (const t of blocked) {
       const fb = t.projectId ? (await this.s.approvals.list({ projectId: t.projectId })).find((a) => a.gate === 'FALLBACK_USAGE' && a.taskId === t.id) : undefined;
-      if (kiroOk) await this.s.tasks.update(t.id, { status: 'READY', blockedReason: null });
+      if (providerPrimary && connections.length && t.input.providerResumeKey !== providerResumeKey) {
+        await this.s.tasks.update(t.id, { status: 'READY', blockedReason: null, input: { ...t.input, providerResumeKey } });
+      } else if (kiroOk) await this.s.tasks.update(t.id, { status: 'READY', blockedReason: null });
       else if (fb?.status === 'APPROVED' && t.input.allowFallback !== true) await this.s.tasks.update(t.id, { status: 'READY', blockedReason: null, input: { ...t.input, allowFallback: true } });
     }
   }

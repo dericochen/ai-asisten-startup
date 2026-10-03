@@ -2,7 +2,7 @@ import { asc, eq } from 'drizzle-orm';
 import type { DB } from '../db/client.js';
 import { providerConnections, secrets, type FallbackProvider } from '../db/schema.js';
 import { decrypt, encrypt, maskSecret } from '../lib/crypto.js';
-import { complete, PROVIDER_DEFAULTS } from './providers.js';
+import { complete, PROVIDER_DEFAULTS, providerBaseUrl } from './providers.js';
 
 export class SecretStore {
   constructor(private db: DB) {}
@@ -38,6 +38,8 @@ export class FallbackConnections {
   }
 
   async create(input: ConnectionInput) {
+    providerBaseUrl(input.provider, input.baseUrl);
+    if (PROVIDER_DEFAULTS[input.provider].needsKey && !input.apiKey) throw new Error('This provider requires an API key.');
     let secretId: string | null = null;
     if (input.apiKey) secretId = (await this.store.put(`${input.name} API key`, 'FALLBACK_API_KEY', input.apiKey)).id;
     const [row] = await this.db.insert(providerConnections).values({
@@ -50,6 +52,7 @@ export class FallbackConnections {
   async update(id: string, input: Partial<ConnectionInput>) {
     const row = (await this.db.select().from(providerConnections).where(eq(providerConnections.id, id)))[0];
     if (!row) throw new Error('Connection not found');
+    providerBaseUrl(row.provider, input.baseUrl === undefined ? row.baseUrl : input.baseUrl);
     let secretId = row.secretId;
     if (input.apiKey) {
       if (secretId) await this.store.remove(secretId);

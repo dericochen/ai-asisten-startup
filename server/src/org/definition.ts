@@ -130,6 +130,7 @@ export const ROLES: RoleDef[] = [
 export const DEFAULT_POLICIES: CompanyPolicies = {
   gateApprover: 'OWNER',
   deploymentMode: 'OWNER_APPROVAL',
+  primaryRuntime: 'KIRO',
   fallbackMode: 'ASK_OWNER',
   fallbackEnabled: false,
   limits: { maxResearchRounds: 2, maxReviewRounds: 2, maxAgentRetries: 2, maxTaskRevisions: 2, maxFixAttempts: 2 },

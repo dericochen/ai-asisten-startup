@@ -7,12 +7,12 @@ import type { Services } from '../core/container.js';
 import type { WorkflowEngine } from '../workflow/engine.js';
 import { migrationStatus } from '../db/client.js';
 import { writeAgentProfiles } from '../kiro/agents.js';
-import { PROVIDER_DEFAULTS } from '../fallback/providers.js';
+import { PROVIDER_DEFAULTS, listModels, providerBaseUrl, ProviderError } from '../fallback/providers.js';
 import { config } from '../config.js';
 import { run } from '../lib/proc.js';
 import { processEnvironment } from '../lib/sandbox.js';
 
-const PROVIDERS = ['OPENROUTER', 'OPENAI', 'ANTHROPIC', 'GEMINI', 'OPENAI_COMPATIBLE', 'OLLAMA'] as const;
+const PROVIDERS = ['NINE_ROUTER', 'OPENROUTER', 'OPENAI', 'ANTHROPIC', 'GEMINI', 'OPENAI_COMPATIBLE', 'OLLAMA'] as const;
 
 export async function systemHealth(s: Services, engine: WorkflowEngine, driver: string) {
   const checks: { key: string; label: string; ok: boolean; detail: string }[] = [];
@@ -38,7 +38,9 @@ export async function systemHealth(s: Services, engine: WorkflowEngine, driver: 
   checks.push({ key: 'workspaces', label: 'Project workspaces', ok: wsOk, detail: config.workspacesDir });
   const g = await s.git.available();
   checks.push({ key: 'git', label: 'Git', ok: g.ok, detail: g.version ?? 'git not found' });
-  return { ok: checks.every((c) => c.ok || c.key === 'fallback'), checks };
+  const providerPrimary = s.policies().primaryRuntime === 'PROVIDERS';
+  if (providerPrimary) checks.push({ key: 'primaryProvider', label: 'Primary AI provider', ok: conns.length > 0, detail: conns[0] ? `${conns[0].name} (${conns[0].model})` : 'Add an enabled provider connection in AI Runtime.' });
+  return { ok: checks.every((c) => c.ok || c.key === 'fallback' || providerPrimary && ['kiro', 'kiroAuth', 'agents'].includes(c.key)), checks };
 }
 
 export function registerRuntimeRoutes(app: FastifyInstance, s: Services, engine: WorkflowEngine, driver: string) {
@@ -80,8 +82,15 @@ export function registerRuntimeRoutes(app: FastifyInstance, s: Services, engine:
 
   const connSchema = z.object({
     name: z.string().trim().min(2).max(60), provider: z.enum(PROVIDERS), apiKey: z.string().trim().min(8).max(500).optional(),
-    baseUrl: z.string().url().max(300).nullable().optional(), model: z.string().trim().min(1).max(120), enabled: z.boolean().optional(),
+    baseUrl: z.string().url().max(300).refine((value) => { try { providerBaseUrl('OPENAI_COMPATIBLE', value); return true; } catch { return false; } }, 'Use an HTTP(S) API base URL without credentials, query or fragment').nullable().optional(), model: z.string().trim().min(1).max(120), enabled: z.boolean().optional(),
     priority: z.number().int().min(1).max(9).optional(), costInputPerMTok: z.number().min(0).max(1000).nullable().optional(), costOutputPerMTok: z.number().min(0).max(1000).nullable().optional(),
+  });
+
+  app.post('/api/runtime/fallback/models', async (req, reply) => {
+    const parsed = connSchema.pick({ provider: true, apiKey: true, baseUrl: true }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid provider settings' });
+    try { return { models: await listModels(parsed.data) }; }
+    catch (e) { return reply.code(e instanceof ProviderError && e.status === 400 ? 400 : 502).send({ error: (e as Error).message }); }
   });
 
   app.post('/api/runtime/fallback', async (req, reply) => {
@@ -94,7 +103,7 @@ export function registerRuntimeRoutes(app: FastifyInstance, s: Services, engine:
   });
 
   app.put('/api/runtime/fallback/:id', async (req, reply) => {
-    const body = connSchema.partial().safeParse(req.body);
+    const body = connSchema.omit({ provider: true }).partial().safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'Invalid connection' });
     await s.fallback.update((req.params as { id: string }).id, body.data);
     await s.audit.log(owner(req), 'fallback.connection_update', (req.params as { id: string }).id, { fields: Object.keys(body.data).filter((k) => k !== 'apiKey'), keyRotated: !!body.data.apiKey });
@@ -105,6 +114,13 @@ export function registerRuntimeRoutes(app: FastifyInstance, s: Services, engine:
     await s.fallback.remove((req.params as { id: string }).id);
     await s.audit.log(owner(req), 'fallback.connection_delete', (req.params as { id: string }).id, {});
     return { ok: true };
+  });
+
+  app.post('/api/runtime/fallback/:id/models', async (req, reply) => {
+    try {
+      const { row, apiKey } = await s.fallback.credentials((req.params as { id: string }).id);
+      return { models: await listModels({ provider: row.provider, baseUrl: row.baseUrl, apiKey }) };
+    } catch (e) { return reply.code(502).send({ error: (e as Error).message }); }
   });
 
   app.post('/api/runtime/fallback/:id/test', async (req) => {
